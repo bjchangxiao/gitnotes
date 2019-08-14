@@ -1,0 +1,92 @@
+…or create a new repository on the command line
+echo "# gitnotes" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git remote add origin https://github.com/bjchangxiao/gitnotes.git
+git push -u origin master
+
+…or push an existing repository from the command line
+git remote add origin https://github.com/bjchangxiao/gitnotes.git
+git push -u origin master
+
+git branch -av
+
+git config user.name 'xiao.chang'
+git config user.email 'bjchangxiao@asf.com'
+
+git config user.name
+git config user.email
+
+git remote show
+git remote show origin
+
+git push
+
+vi delete :2,4d delete line 2 to line 4
+
+git log
+git branch -av
+
+git reflog
+
+git commit -am 'test'
+
+git pull == git fetch + git merge
+
+git push origin v5.0
+git push origin tag v1.0 v2.0
+
+git remote show origin
+
+git log
+git log origin/master
+git log remotes/origin/master
+git log refs/remotes/origin/master
+
+git push origin --delete tag v1.0
+git push origin --delete v1.0 v2.0
+git
+git tag v8.0 -m '11111111111111'
+git tag -n
+
+git remote prune origin
+
+git gc
+
+git rm 
+
+git status
+
+git rm --cached 1.txt delete from staged
+
+git init --bare 创建裸库
+
+
+git submodule add https://github.com/bjchangxiao/child.git mymodule mymodule不能存在会自动创建
+git add .
+git commit -m 'submodule'
+更新submodule就进入submodule目录，然后git pull就可以了
+git submodule foreach git pull拉去所有submodule
+
+git clone https://github.com/bjchangxiao/parent.git zmy clone到zmy目录，自动创建
+submodule没有内容，需要手动执行下面的命令
+git submodule init
+git submodule update --recursive
+
+git clone https://github.com/bjchangxiao/parent.git lff --recursive自动clone子模块，不用想上面的方法，还要进入submodule
+
+git rm --cached mymodule
+手动删除mymodule目录
+然后git
+git add .
+git commit -m 'deletesubmodule'
+git push 
+
+
+
+
+
+
+
+

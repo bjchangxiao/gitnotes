@@ -85,6 +85,42 @@ git push
 
 
 
+…or create a new repository on the command line
+echo "# subtreeparent" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git remote add origin https://github.com/bjchangxiao/subtreeparent.git
+git push -u origin master
+…or push an existing repository from the command line
+git remote add origin https://github.com/bjchangxiao/subtreeparent.git
+git push -u origin master
+
+…or create a new repository on the command line
+echo "# subtreechild" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git remote add origin https://github.com/bjchangxiao/subtreechild.git
+git push -u origin master
+…or push an existing repository from the command line
+git remote add origin https://github.com/bjchangxiao/subtreechild.git
+git push -u origin master
+
+
+git config --global alias.cm 'commit -m'创建alias
+
+git remote add subtree-origin https://github.com/bjchangxiao/subtreechild.git
+git remote show
+git subtree add --prefix=subtreedir subtree-origin master --squash --squash会去掉subtree的提交历史，可以不加这个参数
+git push      在parent下执行就行
+git subtree pull --prefix=subtreedir subtree-origin master --squash
+git add .
+git commit -m 'test'
+git push 在subtreedir里的修改，push是到subtreeparent的地址，没有subtreechild
+
+git subtree push --prefix=subtreedir subtree-origin master这个会把subtreedir下的新增的东西，推送到subtreechild去
+
 
 
 

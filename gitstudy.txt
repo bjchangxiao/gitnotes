@@ -113,6 +113,14 @@ git config --global alias.cm 'commit -m'创建alias
 git remote add subtree-origin https://github.com/bjchangxiao/subtreechild.git
 git remote show
 git subtree add --prefix=subtreedir subtree-origin master --squash --squash会去掉subtree的提交历史，可以不加这个参数
+or
+git subtree add --prefix subtreedir subtree-origin master --squash --squash会去掉subtree的提交历史，可以不加这个参数
+or
+git subtree add -P subtreedir       subtree-origin master --squash --squash会去掉subtree的提交历史，可以不加这个参数
+
+--squash要用就所有的父子都用，要不就都别用，会引起各种问题
+
+
 git push      在parent下执行就行
 git subtree pull --prefix=subtreedir subtree-origin master --squash
 git add .

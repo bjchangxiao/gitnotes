@@ -15,7 +15,7 @@ BEGIN
 --select func_changxiao_de('BBAF9259A41236C55790ACF6A0DAC302') from dual;
 --   DBMS_OUTPUT.PUT_LINE ( 'Original string: ' || input_string);
    key_bytes_raw := DBMS_CRYPTO.RANDOMBYTES (num_key_bytes);
-   key_bytes_raw := UTL_I18N.string_to_raw('12345678901234567890123456789012','AL32UTF8');
+   key_bytes_raw := UTL_I18N.string_to_raw('sAoSklds$sd@#$50swSfS(&*%$$^%GH2','AL32UTF8');
    encrypted_raw := DBMS_CRYPTO.ENCRYPT
       (
          src => UTL_I18N.STRING_TO_RAW (input_string,  'AL32UTF8'),

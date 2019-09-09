@@ -167,3 +167,33 @@ SELECT json_mergepatch(po_document,
                        '{"Special Instructions":null}' RETURNING CLOB PRETTY)
   FROM j_purchaseorder;
 
+select * from user_tables;
+select * from j_purchaseorder;
+select json_query(po_document, '$.LineItems' WITH ARRAY WRAPPER),
+       json_query(po_document, '$.LineItems[0]' WITH ARRAY WRAPPER),
+       json_query(po_document, '$.LineItems[1]' WITH ARRAY WRAPPER),
+       json_query(po_document,
+                  '$.LineItems[1].ItemNumber' WITH ARRAY WRAPPER),
+       json_query(po_document, '$.LineItems[2].Part' WITH ARRAY WRAPPER),
+       json_query(po_document, '$.LineItems[2].*' WITH ARRAY WRAPPER),
+       
+       json_query(po_document, '$.LineItems[*].Part' WITH ARRAY WRAPPER),
+       po_document
+  from j_purchaseorder;
+select json_query(po_document,
+                  '$.LineItems[*].Part?(@.UnitPrice==19.95)' WITH ARRAY
+                  WRAPPER),
+       po_document
+  from j_purchaseorder;
+select json_query(po_document,
+                  '$.LineItems[*]?(@.Part.UnitPrice==19.95)' WITH ARRAY
+                  WRAPPER),
+       po_document
+  from j_purchaseorder;
+select t.*, t.rowid from j_purchaseorder t;
+select json_query(po_document,
+                  '$..UnitPrice' WITH ARRAY
+                  WRAPPER),
+       po_document
+  from j_purchaseorder;
+select t.*, t.rowid from j_purchaseorder t;

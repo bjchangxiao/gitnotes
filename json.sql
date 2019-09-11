@@ -306,3 +306,100 @@ SELECT JSON_VALUE('{firstname:"John"}', '$.lastname') FROM DUAL;
 SELECT JSON_VALUE('{firstname:"John"}', '$.lastname' null on error) FROM DUAL;
 SELECT JSON_VALUE('{firstname:"John"}', '$.lastname' DEFAULT 'No last name found' ON ERROR) FROM DUAL;
 SELECT JSON_VALUE('{firstname:"John"}', '$.lastname') FROM DUAL;
+
+SELECT PO.*
+  FROM J_PURCHASEORDER PO
+ WHERE JSON_EXISTS(PO.PO_DOCUMENT, '$.LineItems.Part.UPCCode');
+
+--three equivalent method
+SELECT PO.PO_DOCUMENT
+  FROM J_PURCHASEORDER PO
+ WHERE JSON_EXISTS(PO.PO_DOCUMENT,
+                   '$?(@.LineItems.Part.UPCCode == 85391628927)');
+
+SELECT PO.PO_DOCUMENT
+  FROM J_PURCHASEORDER PO
+ WHERE JSON_EXISTS(PO.PO_DOCUMENT,
+                   '$.LineItems?(@.Part.UPCCode == 85391628927)');
+
+SELECT PO.PO_DOCUMENT
+  FROM J_PURCHASEORDER PO
+ WHERE JSON_EXISTS(PO.PO_DOCUMENT,
+                   '$.LineItems.Part?(@.UPCCode == 85391628927)');
+
+--If you use this example or similar with SQL*Plus 
+--then you must use SET DEFINE OFF
+--first, so that SQL*Plus does not 
+--interpret && exists as a substitution variable and
+--prompt you to define it.
+SELECT PO.PO_DOCUMENT
+  FROM J_PURCHASEORDER PO
+ WHERE JSON_EXISTS(PO.PO_DOCUMENT,
+                   '$?(@.LineItems.Part.UPCCode == 85391628927 && @.LineItems.Quantity > 3)');
+
+SELECT PO.PO_DOCUMENT
+  FROM J_PURCHASEORDER PO
+ WHERE JSON_EXISTS(PO.PO_DOCUMENT,
+                   '$.LineItems?(@.Part.UPCCode == 85391628927 && @.Quantity > 3)');
+
+SELECT PO.PO_DOCUMENT
+  FROM J_PURCHASEORDER PO
+ WHERE JSON_EXISTS(PO.PO_DOCUMENT,
+                   '$?(@.User == "ABULL" && exists(@.LineItems?(@.Part.UPCCode == 85391628927 && @.Quantity > 3)))');
+
+
+SELECT JT.*
+  FROM J_PURCHASEORDER,
+       JSON_TABLE(PO_DOCUMENT,
+                  '$.ShippingInstructions.Phone[*]'
+                  COLUMNS(ROW_NUMBER FOR ORDINALITY,
+                          PHONE_TYPE VARCHAR2(10) PATH '$.type',
+                          PHONE_NUM VARCHAR2(20) PATH '$.number')) AS JT;
+
+SELECT REQUESTOR, HAS_ZIP
+  FROM J_PURCHASEORDER,
+       JSON_TABLE(PO_DOCUMENT,
+                  '$' COLUMNS(REQUESTOR VARCHAR2(32) PATH '$.Requestor',
+                          HAS_ZIP VARCHAR2(5) EXISTS PATH
+                          '$.ShippingInstructions.Address.zipCode'));
+
+SELECT REQUESTOR
+  FROM J_PURCHASEORDER,
+       JSON_TABLE(PO_DOCUMENT,
+                  '$' COLUMNS(REQUESTOR VARCHAR2(32) PATH '$.Requestor',
+                          HAS_ZIP VARCHAR2(5) EXISTS PATH
+                          '$.ShippingInstructions.Address.zipCode'))
+ WHERE (HAS_ZIP = 'true');
+
+SELECT *
+  FROM JSON_TABLE('[1,2,["a","b"]]',
+                  '$'
+                  COLUMNS(OUTER_VALUE_0 NUMBER PATH '$[0]',
+                          OUTER_VALUE_1 NUMBER PATH '$[1]',
+                          OUTER_VALUE_2 VARCHAR2(20) FORMAT JSON PATH '$[2]'));
+
+SELECT *
+  FROM JSON_TABLE('[1,2,["a","b"]]',
+                  '$'
+                  COLUMNS(OUTER_VALUE_0 NUMBER PATH '$[0]',
+                          OUTER_VALUE_1 NUMBER PATH '$[1]',
+                          NESTED PATH '$[2]'
+                          COLUMNS(NESTED_VALUE_0 VARCHAR2(1) PATH '$[0]',
+                                  NESTED_VALUE_1 VARCHAR2(1) PATH '$[1]')));
+
+SELECT *
+  FROM JSON_TABLE('{a:100, b:200, c:{d:300, e:400}}',
+                  '$' COLUMNS(OUTER_VALUE_0 NUMBER PATH '$.a',
+                          OUTER_VALUE_1 NUMBER PATH '$.b',
+                          NESTED PATH '$.c'
+                          COLUMNS(NESTED_VALUE_0 NUMBER PATH '$.d',
+                                  NESTED_VALUE_1 NUMBER PATH '$.e')));
+
+SELECT JT.*
+  FROM J_PURCHASEORDER,
+       JSON_TABLE(PO_DOCUMENT,
+                  '$'
+                  COLUMNS(REQUESTOR VARCHAR2(32) PATH '$.Requestor',
+                          NESTED PATH '$.ShippingInstructions.Phone[*]'
+                          COLUMNS(PHONE_TYPE VARCHAR2(32) PATH '$.type',
+                                  PHONE_NUM VARCHAR2(20) PATH '$.number'))) AS JT;

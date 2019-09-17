@@ -403,3 +403,175 @@ SELECT JT.*
                           NESTED PATH '$.ShippingInstructions.Phone[*]'
                           COLUMNS(PHONE_TYPE VARCHAR2(32) PATH '$.type',
                                   PHONE_NUM VARCHAR2(20) PATH '$.number'))) AS JT;
+
+DECLARE
+  B        BOOLEAN;
+  JSONDATA CLOB;
+BEGIN
+  SELECT PO_DOCUMENT INTO JSONDATA FROM J_PURCHASEORDER WHERE ROWNUM = 1;
+  DBMS_OUTPUT.PUT_LINE(JSONDATA);
+  B := JSON_VALUE(JSONDATA,
+                  '$.AllowPartialShipment' RETURNING BOOLEAN ERROR ON ERROR);
+END;
+/
+
+
+CREATE TYPE shipping_t AS OBJECT
+(
+  name    VARCHAR2(30),
+  address addr_t
+)
+; 
+CREATE TYPE addr_t AS OBJECT(street VARCHAR2(100), city VARCHAR2(30));
+
+SELECT json_value(po_document, '$.ShippingInstructions' RETURNING shipping_t) FROM j_purchaseorder;
+
+CREATE TYPE part_t AS OBJECT
+(description VARCHAR2(30),
+unitprice NUMBER);
+CREATE TYPE item_t AS OBJECT
+(itemnumber NUMBER,
+part part_t);
+CREATE TYPE items_t AS VARRAY(10) OF item_t;
+-- Query data to return items_t collections of item_t objects
+SELECT json_value(po_document, '$.LineItems' RETURNING items_t)
+FROM j_purchaseorder;
+
+
+SELECT JSON_QUERY(PO_DOCUMENT,
+                  '$.ShippingInstructions.Phone[*].type' WITH WRAPPER)
+  FROM J_PURCHASEORDER;
+
+SELECT JT.*
+  FROM J_PURCHASEORDER PO,
+       JSON_TABLE(PO.PO_DOCUMENT
+                  COLUMNS("Special Instructions",
+                          NESTED LINEITEMS [ * ]
+                          COLUMNS(ITEMNUMBER NUMBER,
+                                  DESCRIPTION PATH PART.DESCRIPTION))) AS "JT";
+
+SELECT jt.*
+  FROM j_purchaseorder po,
+       json_table(po.po_document,
+                  '$' COLUMNS("Special Instructions" VARCHAR2(4000) PATH
+                          '$."Special Instructions"',
+                          NESTED PATH '$.LineItems[*]'
+                          COLUMNS(ItemNumber NUMBER PATH '$.ItemNumber',
+                                  Description VARCHAR(4000) PATH
+                                  '$.Part.Description'))) AS "JT";
+
+SELECT ID, REQUESTOR, TYPE "number"
+  FROM J_PURCHASEORDER
+  LEFT OUTER JOIN JSON_TABLE(PO_DOCUMENT COLUMNS(REQUESTOR, NESTED ShippingInstructions.Phone[*] COLUMNS(type, "number")))
+    on 1 = 1);
+
+SELECT id, requestor, type, "number"
+  FROM j_purchaseorder
+  LEFT OUTER JOIN json_table(po_document COLUMNS(Requestor, NESTED ShippingInstructions.Phone [ * ] COLUMNS(type, "number")))
+    ON 1 = 1);
+
+SELECT id, requestor, type, "number", po_document
+  FROM j_purchaseorder NESTED po_document COLUMNS(Requestor, NESTED ShippingInstructions.Phone [ * ] COLUMNS(type, "number"));
+SELECT JSON_VALUE(PO_DOCUMENT, '$.Requestor' RETURNING VARCHAR2(32)),
+       JSON_QUERY(PO_DOCUMENT,
+                  '$.ShippingInstructions.Phone' RETURNING VARCHAR2(100))
+  FROM J_PURCHASEORDER
+ WHERE JSON_EXISTS(PO_DOCUMENT, '$.ShippingInstructions.Address.zipCode')
+   AND JSON_VALUE(PO_DOCUMENT,
+                  '$.AllowPartialShipment' RETURNING VARCHAR2(5 CHAR)) =
+       'true';
+select jt.requestor, jt.phones
+  from j_purchaseorder,
+       json_table(po_document,
+                  '$' columns(requestor varchar2(32 char) path '$.Requestor',
+                          phones varchar2(100 char) format json path
+                          '$.ShippingInstructions.Phone',
+                          partial varchar2(5 char) path
+                          '$.AllowPartialShipment',
+                          has_zip varchar2(5 char) exists path
+                          '$.ShippingInstructions.Address.zipCode')) jt
+ where jt.partial = 'true'
+   and jt.has_zip = 'true';
+
+
+
+select jt.*
+  from j_purchaseorder,
+       json_table(po_document,
+                  '$'
+                  columns(requestor varchar2(32 char) path '$.Requestor',
+                          phone_type varchar2(50 char) format json with
+                          wrapper path '$.ShippingInstructions.Phone[*].type',
+                          phone_num varchar2(50 char) format json with
+                          wrapper path
+                          '$.ShippingInstructions.Phone[*].number')) as "JT";
+
+SELECT JT.*
+  FROM J_PURCHASEORDER PO,
+       JSON_TABLE(PO.PO_DOCUMENT COLUMNS(REQUESTOR,
+                          NESTED ShippingInstructions.Phone
+                          [ * ] COLUMNS(type, "number"))) AS "JT";
+
+select jt.*
+  from j_purchaseorder po,
+       json_table(po.po_document,
+                  '$'
+                  columns(Requestor varchar2(4000) path '$.Requestor',
+                          nested path '$.ShippingInstructions.Phone[*]'
+                          columns(type varchar2(4000) path '$.type',
+                                  "number" varchar2(4000) path '$.number'))) as jt;
+CREATE OR REPLACE VIEW j_purchaseorder_detail_view
+AS
+SELECT JT.*
+  FROM J_PURCHASEORDER PO,
+       JSON_TABLE(PO.PO_DOCUMENT,
+                  '$' COLUMNS(PO_NUMBER NUMBER(10) PATH '$.PONumber',
+                          reference varchar2(30 char) path '$.Reference',
+                          requestor varchar2(128 char) path '$.Requestor',
+                          userid varchar2(10 char) path '$.User',
+                          costcenter varchar2(16) path '$.CostCenter',
+                          ship_to_name varchar2(20 char) path
+                          '$.ShippingInstructions.name',
+                          ship_to_street varchar2(32 char) path
+                          '$.ShippingInstructions.Address.street',
+                          ship_to_city varchar2(32 char) path
+                          '$.ShippingInstructions.Address.city',
+                          ship_to_country varchar2(32 char) path
+                          '$.ShippingInstructions.Address.country',
+                          ship_to_postcode varchar2(32 char) path
+                          '$.ShippingInstructions.Address.postcode',
+                          ship_to_state varchar2(32 char) path
+                          '$.ShippingInstructions.Address.state',
+                          ship_to_zipCode varchar2(32 char) path
+                          '$.ShippingInstructions.Address.zipCode',
+                          ship_to_phone varchar2(24 char) path
+                          '$.ShippingInstructions.Phone[0].number',
+                          nested path '$.LineItems[*]'
+                          columns(itemno number(38) path '$.ItemNumber',
+                                  description varchar2(256 char) path
+                                  '$.Part.Description',
+                                  upc_code varchar2(14 char) path
+                                  '$.Part.UPCCode',
+                                  quantity number(12, 4) path '$.Quantity',
+                                  uniteprice number(14, 2) path
+                                  '$.Part.UnitPrice'))) jt;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -557,6 +557,60 @@ SELECT JT.*
                                   '$.Part.UnitPrice'))) jt;
 
 
+SELECT JSON_SERIALIZE(PO_DOCUMENT PRETTY)
+FROM J_PURCHASEORDER;
+
+SELECT * FROM USER_JSON_COLUMNS;
+SELECT * FROM USER_JSON_DATAGUIDES;
+SELECT * FROM USER_JSON_DATAGUIDE_FIELDS;
+
+EXEC DBMS_JSON.create_view('VIEW1','J_PURCHASEORDER','PO_DOCUMENT',DBMS_JSON.get_index_dataguide('J_PURCHASEORDER','PO_DOCUMENT',DBMS_JSON.FORMAT_HIERARCHICAL));
+
+
+DECLARE
+  dg CLOB;
+BEGIN
+  SELECT json_dataguide(po_document,
+                        FORMAT DBMS_JSON.FORMAT_HIERARCHICAL,
+                        DBMS_JSON.PRETTY)
+    INTO dg
+    FROM j_purchaseorder
+   WHERE extract(YEAR FROM date_loaded) = 2014;
+  DBMS_JSON.create_view('MYVIEW', 'J_PURCHASEORDER', 'PO_DOCUMENT', dg);
+END;
+/
+
+EXEC DBMS_JSON.create_view_on_path('VIEW2','J_PURCHASEORDER','PO_DOCUMENT','$');
+EXEC DBMS_JSON.create_view_on_path('VIEW4','J_PURCHASEORDER','PO_DOCUMENT','$.LineItems.Part');
+EXEC DBMS_JSON.create_view_on_path('VIEW3','J_PURCHASEORDER','PO_DOCUMENT','$',100);
+EXEC DBMS_JSON.add_virtual_columns('J_PURCHASEORDER','PO_DOCUMENT',DBMS_JSON.get_index_dataguide('J_PURCHASEORDER','PO_DOCUMENT',DBMS_JSON.FORMAT_HIERARCHICAL));
+
+
+
+DECLARE
+dg CLOB;
+BEGIN
+dg := '{"type" : "object",
+"properties" :
+{"PO_Number" : {"type" : "number",
+"o:length" : 4,
+"o:preferred_column_name" : "PO_Number",
+"o:hidden" : false},
+"PO_Reference" : {"type" : "string",
+"o:length" : 16,
+"o:preferred_column_name" : "PO_Reference",
+"o:hidden" : true}}}';
+DBMS_JSON.add_virtual_columns('J_PURCHASEORDER', 'PO_DOCUMENT', dg);
+END;
+/
+
+
+
+SELECT column_name FROM user_tab_columns
+WHERE table_name = 'J_PURCHASEORDER' ORDER BY 1;
+
+
+
 
 
 

@@ -609,6 +609,140 @@ END;
 SELECT column_name FROM user_tab_columns
 WHERE table_name = 'J_PURCHASEORDER' ORDER BY 1;
 
+SELECT JSON_OBJECT('NAME' VALUE FIRST_NAME || ' ' || LAST_NAME,
+                   'HASCOMMISSION' VALUE CASE
+                     WHEN COMMISSION_PCT IS NULL THEN
+                      'FALSE'
+                     ELSE
+                      'TRUE'
+                   END FORMAT JSON)
+  FROM EMPLOYEES
+ WHERE FIRST_NAME LIKE 'W%';
+ 
+SELECT JSON_OBJECT('ID' :EMPLOYEE_ID,
+                   'NAME' :FIRST_NAME || ' ' || LAST_NAME,
+                   'HIREDATE' :HIRE_DATE,
+                   'PAY' :SALARY,
+                   'CONTRACTINFO':JSON_OBJECT('MAIL' :EMAIL, 'PHONE' :PHONE_NUMBER) FORMAT JSON)
+  FROM EMPLOYEES
+ WHERE SALARY > 15000;
+
+SELECT JSON_OBJECT(LAST_NAME,
+                   HIRE_DATE,
+                   SALARY,
+                   'CONTACTINFO' :JSON_OBJECT(EMAIL, PHONE_NUMBER) FORMAT JSON)
+  FROM EMPLOYEES
+ WHERE EMPLOYEE_ID = 101;
+
+SELECT JSON_OBJECT(*)
+FROM EMPLOYEES
+WHERE SALARY>1500;
+
+select t.*,t.rowid from employees t;
+SELECT JSON_OBJECT('EMAIL' VALUE EMAIL ABSENT ON NULL,
+                   'PHONE_NUMBER' :PHONE_NUMBER ABSENT NO NULL)
+  FROM EMPLOYEES;
+
+CREATE TABLE po_ship
+AS 
+SELECT json_value(po_document, '$.ShippingInstructions'
+RETURNING shipping_t)
+shipping
+FROM j_purchaseorder;
+
+SELECT JSON_OBJECT('EMAIL' VALUE EMAIL,
+                   'MD' VALUE JSON_ARRAY(MANAGER_ID, DEPARTMENT_ID))
+  FROM EMPLOYEES;
+
+
+SELECT JSON_OBJECTAGG(LAST_NAME VALUE LAST_NAME) 
+FROM EMPLOYEES;
+
+create table department(department_name varchar2(20),department_id number(2));
+insert into department valueS('SALES',10);
+insert into department valueS('IT',20);
+SELECT JSON_OBJECTAGG(department_name VALUE department_id) 
+FROM department;
+SELECT JSON_OBJECT('ID' VALUE MGR.EMPLOYEE_ID,
+                   'MANAGER' VALUE(MGR.FIRST_NAME || ' ' || MGR.LAST_NAME),
+                   'NUMREPORTS' VALUE COUNT(RPT.EMPLOYEE_ID),
+                   'REPORTS' VALUE
+                   JSON_ARRAYAGG(RPT.EMPLOYEE_ID ORDER BY RPT.EMPLOYEE_ID))
+  FROM EMPLOYEEs MGR, EMPLOYEES RPT
+ WHERE MGR.EMPLOYEE_ID = RPT.MANAGER_ID
+ GROUP BY MGR.EMPLOYEE_ID, MGR.LAST_NAME, MGR.FIRST_NAME
+HAVING COUNT(RPT.EMPLOYEE_ID) > 6;
+
+DECLARE
+JE JSON_ELEMENT_T;
+JO JSON_OBJECT_T;
+BEGIN
+  JE:=JSON_ELEMENT_T.PARSE('{"NAME":"RADIO CONTROLLED PLANE"}');
+  IF (JE.IS_OBJECT) THEN
+    JO:=TREAT(JE AS JSON_OBJECT_T);
+    JO.PUT('PRICE',149.99);
+  END IF;
+  DBMS_OUTPUT.PUT_LINE(JE.TO_STRING());
+END;
+/
+
+DECLARE
+  JO          JSON_OBJECT_T;
+  JA          JSON_ARRAY_T;
+  KEYS        JSON_KEY_LIST;
+  KEYS_STRING VARCHAR2(100);
+BEGIN
+  JA   := NEW JSON_ARRAY_T;
+  JO   := JSON_OBJECT_T.PARSE('{"NAME":"BEDA","JOBTITLE":"CODMONKI","PROJECTS":["JSON","XNL"]}');
+  KEYS := JO.GET_KEYS;
+  FOR I IN 1 .. KEYS.COUNT LOOP
+    JA.APPEND(KEYS(I));
+  END LOOP;
+  KEYS_STRING := JA.TO_STRING;
+  DBMS_OUTPUT.PUT_LINE(KEYS_STRING);
+END;
+/
+
+CREATE OR REPLACE FUNCTION ADD_TOTAL(PURCHASEORDER IN VARCHAR2)
+  RETURN VARCHAR2 IS
+  PO_OBJ      JSON_OBJECT_T;
+  LI_ARR        JSON_ARRAY_T;
+  LI_ITEM       JSON_ELEMENT_T;
+  LI_OBJ     JSON_OBJECT_T;
+  UNITPRICE     NUMBER;
+  QUANTITY      NUMBER;
+  TOTALPRICE    NUMBER := 0;
+  TOTALQUANTITY NUMBER := 0;
+BEGIN
+  PO_OBJ := JSON_OBJECT_T.PARSE(PURCHASEORDER);
+  LI_ARR    := PO_OBJ.GET_ARRAY('LineItems');
+  FOR I IN 0 .. LI_ARR.GET_SIZE - 1 LOOP
+    LI_OBJ     := JSON_OBJECT_T(LI_ARR.GET(I));
+    QUANTITY      := LI_OBJ.GET_NUMBER('Quantity');
+    UNITPRICE     := LI_OBJ.GET_OBJECT('Part').get_number('UnitPrice');
+    TOTALPRICE    := TOTALPRICE + (QUANTITY * UNITPRICE);
+    TOTALQUANTITY := TOTALQUANTITY + QUANTITY;
+  END LOOP;
+  PO_OBJ.PUT('totalQuantity', TOTALQUANTITY);
+  PO_OBJ.PUT('TOTALPRICE', TOTALPRICE);
+  RETURN PO_OBJ.TO_STRING;
+END;
+/
+update j_purchaseorder set po_document=add_total(po_document);
+select po_document
+  from j_purchaseorder po
+ where po.po_document.PONumber = 1600;
+
+
+
+
+
+
+
+
+
+
+
 
 
 

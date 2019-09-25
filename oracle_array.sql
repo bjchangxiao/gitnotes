@@ -192,37 +192,217 @@ BEGIN
   PRINT_TEAM('TEAM:');
 END;
 
+----------------------------------------------------------
+--only oracle 19c 
+DROP PACKAGE PKG;
+CREATE PACKAGE PKG IS
+TYPE REC_T IS RECORD(YEAR PLS_INTEGER:=2,NAME VARCHAR2(100));
+END;
+
+DECLARE
+  V_REC1 PKG.REC_T := PKG.REC_T(1847, 'ONE EIGHT FOUR SEVEN');
+  V_REC2 PKG.REC_T := PKG.REC_T(YEAR => 1, NAME => 'ONE');
+  V_REC3 PKG.REC_T := PKG.REC_T(NULL, NULL);
+  PROCEDURE PRINT_REC(PI_REC PKG.REC_T := PKG.REC_T(1847 + 1, 'A' || 'B')) IS
+    V_REC1 PKG.REC_T := PKG.REC_T(2847, 'TOWN EIGHT FOUR SEVEN');
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE(NVL(v_rec1.year, 0) || ' ' ||
+                         NVL(v_rec1.name, 'N/A'));
+    DBMS_OUTPUT.PUT_LINE(NVL(pi_rec.year, 0) || ' ' ||
+                         NVL(pi_rec.name, 'N/A'));
+  END;
+BEGIN
+  print_rec(v_rec1);
+  print_rec(v_rec2);
+  print_rec(v_rec3);
+  print_rec();
+END;
+   
+---------------------------------------------------------- 
+--only oracle 19c
+DROP FUNCTION PRINT_BOOL;
+CREATE OR REPLACE FUNCTION PRINT_BOOL(V IN BOOLEAN)
+RETURN VARCHAR2
+IS
+V_RTN VARCHAR2(10);
+BEGIN
+  CASE V
+    WHEN TRUE THEN
+      V_RTN:='TRUE';
+    WHEN FALSE THEN
+      V_RTN:='FALSE';
+    ELSE
+      V_RTN:='NULL';
+  END CASE;
+  RETURN V_RTN;
+END PRINT_BOOL;
+
+DECLARE
+  TYPE T_AA IS TABLE OF BOOLEAN INDEX BY PLS_INTEGER;
+  V_AA1 T_AA := T_AA(1 => FALSE, 2 => TRUE, 3 => NULL);
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(print_bool(v_aa1(1)));
+  DBMS_OUTPUT.PUT_LINE(print_bool(v_aa1(2)));
+  DBMS_OUTPUT.PUT_LINE(print_bool(v_aa1(3)));
+END;
+   
+----------------------------------------------------------
+DECLARE
+  TYPE TRIPLET IS VARRAY(3) OF VARCHAR2(15);
+  TYPE TRIO IS VARRAY(3) OF VARCHAR2(15);
+  GROUP1 TRIPLET := TRIPLET('JONES', 'WONG', 'MARCEAU');
+  GROUP2 TRIPLET;
+  GROUP3 TRIO;
+BEGIN
+  GROUP2 := GROUP1;
+  GROUP3 := GROUP1;
+END;
+/
+   
+----------------------------------------------------------  
+ DECLARE
+   TYPE DNAMES_TAB IS TABLE OF VARCHAR2(30);
+   DEPT_NAMES DNAMES_TAB := DNAMES_TAB('SHIPPING',
+                                       'SALES',
+                                       'FINANCE',
+                                       'PAYROLL');
+   EMPTY_SET  DNAMES_TAB;
+   PROCEDURE PRINT_DEPT_NAMES_STATUS IS
+   BEGIN
+     IF DEPT_NAMES IS NULL THEN
+       DBMS_OUTPUT.PUT_LINE('DEPT_NAMES IS NULL.');
+     ELSE
+       DBMS_OUTPUT.PUT_LINE('DEPT_NAMES IS NOT NULL.');
+     END IF;
+   END;
+ BEGIN
+   PRINT_DEPT_NAMES_STATUS;
+   DEPT_NAMES:=EMPTY_SET;
+   PRINT_DEPT_NAMES_STATUS;
+   DEPT_NAMES := DNAMES_TAB('SHIPPING', 'SALES', 'FINANCE', 'PAYROLL');
+   PRINT_DEPT_NAMES_STATUS;
+ END;
+----------------------------------------------------------    
+DECLARE
+  TYPE NESTED_TYP IS TABLE OF NUMBER;
+  NT1    NESTED_TYP := NESTED_TYP(1, 2, 3);
+  NT2    NESTED_TYP := NESTED_TYP(3, 2, 1);
+  NT3    NESTED_TYP := NESTED_TYP(2, 3, 1, 3);
+  NT4    NESTED_TYP := NESTED_TYP(1, 2, 4);
+  ANSWER NESTED_TYP;
+  PROCEDURE PRINT_NESTED_TABLE(NT NESTED_TYP) IS
+    OUTPUT VARCHAR2(128);
+  BEGIN
+    IF NT IS NULL THEN
+      DBMS_OUTPUT.PUT_LINE('RESULT:NULL SET');
+    ELSIF NT.COUNT = 0 THEN
+      DBMS_OUTPUT.PUT_LINE('RESUTL EMPTY SET');
+    ELSE
+      FOR I IN NT.FIRST .. NT.LAST LOOP
+        OUTPUT := OUTPUT || NT(I) || ' ';
+      END LOOP;
+      DBMS_OUTPUT.PUT_LINE('RESULT:' || OUTPUT);
+    END IF;
+  END;
+BEGIN
+  ANSWER := NT1 MULTISET UNION NT4;
+  print_nested_table(ANSWER);
+  ANSWER := NT1 MULTISET UNION NT3;
+  PRINT_NESTED_TABLE(ANSWER);
+  ANSWER := NT1 MULTISET UNION DISTINCT NT3;
+  PRINT_NESTED_TABLE(ANSWER);
+  ANSWER := NT2 MULTISET INTERSECT NT3;
+  PRINT_NESTED_TABLE(ANSWER);
+  ANSWER := NT2 MULTISET INTERSECT DISTINCT NT3;
+  PRINT_NESTED_TABLE(ANSWER);
+  ANSWER:=SET(NT3);
+  PRINT_NESTED_TABLE(ANSWER);
+  ANSWER := NT3 MULTISET EXCEPT NT2;
+  PRINT_NESTED_TABLE(ANSWER);
+  ANSWER := NT3 MULTISET EXCEPT DISTINCT NT2;
+  PRINT_NESTED_TABLE(ANSWER);
+END;
+---------------------------------------------------------- 
+--Two-Dimensional Varray (Varray of Varrays)
+DECLARE
+  TYPE T1 IS VARRAY(10) OF INTEGER;
+  VA T1 := T1(2, 3, 5);
+  TYPE NT1 IS VARRAY(10) OF T1;
+  NVA NT1 := NT1(VA, T1(55, 6, 73), T1(2, 4), VA);
+  I   INTEGER;
+  VAL T1;
+BEGIN
+  I := NVA(2) (3);
+  DBMS_OUTPUT.PUT_LINE('I=' || I);
+  NVA.EXTEND;
+  NVA(5) := T1(56, 32);
+  NVA(4) := T1(45, 43, 67, 4335);
+  NVA(4)(4) := 1;
+  NVA(4).EXTEND;
+  NVA(4)(5) := 89;
+END;
+/
+
+----------------------------------------------------------    
+--Nested Tables of Nested Tables and Varrays of Integers
+
+DECLARE
+  TYPE TB1 IS TABLE OF VARCHAR2(20);
+  VTB1 TB1 := TB1('ONE', 'TWO');
+  TYPE NTB1 IS TABLE OF TB1;
+  VNTB1 NTB1 := NTB1(VTB1);
+  TYPE TV1 IS VARRAY(10) OF INTEGER;
+  TYPE NTB2 IS TABLE OF TV1;
+  VNTB2 NTB2 := NTB2(TV1(3, 5), TV1(5, 7, 3));
+BEGIN
+  VNTB1.EXTEND;
+  VNTB1(2) := VNTB1(1);
+  VNTB1.DELETE(1);
+  VNTB1(2).DELETE(1);
+END;
 
 
+----------------------------------------------------------  
+--Nested Tables of Associative Arrays and Varrays of Strings
+DECLARE
+  TYPE tb1 IS TABLE OF INTEGER INDEX BY PLS_INTEGER; -- associative arrays
+  v4 tb1;
+  v5 tb1;
+  TYPE aa1 IS TABLE OF tb1 INDEX BY PLS_INTEGER; -- associative array of
+  v2 aa1; -- associative arrays
+  TYPE va1 IS VARRAY(10) OF VARCHAR2(20); -- varray of strings
+  v1 va1 := va1('hello', 'world');
+  TYPE ntb2 IS TABLE OF va1 INDEX BY PLS_INTEGER; -- associative array of varrays
+  v3 ntb2;
+BEGIN
+  v4(1) := 34; -- populate associative array
+  v4(2) := 46456;
+  v4(456) := 343;
+  v2(23) := v4; -- populate associative array of associative arrays
+  v3(34) := va1(33, 456, 656, 343); -- populate associative array varrays
+  v2(35) := v5; -- assign empty associative array to v2(35)
+  v2(35)(2) := 78;
+END;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  
 ----------------------------------------------------------    
 ----------------------------------------------------------    
 ----------------------------------------------------------    
-----------------------------------------------------------    
-----------------------------------------------------------    
-----------------------------------------------------------    
-----------------------------------------------------------    
-----------------------------------------------------------    
-----------------------------------------------------------    
-----------------------------------------------------------    
-----------------------------------------------------------    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

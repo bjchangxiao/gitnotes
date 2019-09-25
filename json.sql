@@ -733,33 +733,129 @@ select po_document
   from j_purchaseorder po
  where po.po_document.PONumber = 1600;
 
+CREATE TABLE J_GEO
+(ID VARCHAR2(32) NOT NULL,
+GEO_DOC VARCHAR2(4000) CHECK (GEO_DOC IS JSON));
+
+INSERT INTO j_geo
+VALUES
+  (1,
+   '{"type" : "FeatureCollection","features" : [{"type" : "Feature","geometry" : {"type" : "Point","coordinates" : [-122.236111,37.482778]},"properties" : {"Name" : "Redwood City"}},{"type" : "Feature","geometry" : {"type" : "LineString","coordinates" : [[102.0, 0.0],[103.0, 1.0],[104.0, 0.0],[105.0, 1.0]]},"properties" : {"prop0" : "value0","prop1" : 0.0}},{"type" : "Feature","geometry" : {"type" : "Polygon","coordinates" : [[[100.0, 0.0],[101.0, 0.0],[101.0, 1.0],[100.0, 1.0],[100.0,0.0]]]},"properties" : {"prop0" : "value0","prop1" : {"this" :"that"}}}]}');
 
 
+SELECT json_value(geo_doc,
+                  '$.features[0].geometry' RETURNING SDO_GEOMETRY ERROR ON
+                  ERROR)
+  FROM j_geo;
+
+SELECT jt.*
+  FROM j_geo,
+       json_table(geo_doc,
+                  '$.features[*]'
+                  COLUMNS(sdo_val SDO_GEOMETRY PATH '$.geometry')) jt;
 
 
+CREATE INDEX geo_first_feature_idx
+ON j_geo (json_value(geo_doc, '$.features[0].geometry'
+RETURNING SDO_GEOMETRY))
+INDEXTYPE IS MDSYS.SPATIAL_INDEX;
+
+SELECT id,
+       json_value(geo_doc, '$features[0].properties.Name') "Name",
+       SDO_GEOM.sdo_distance(json_value(geo_doc, '$features[0].geometry')
+                             RETURNING SDO_GEOMETRY,
+                             SDO_GEOMETRY(2001,
+                                          4326,
+                                          SDO_POINT_TYPE(-122.416667,
+                                                         37.783333,
+                                                         NULL),
+                                          NULL,
+                                          NULL),
+                             100, -- Tolerance in meters
+                             'unit=KM') "Distance in kilometers"
+  FROM j_geo
+ WHERE sdo_within_distance(json_value(geo_doc,
+                                      '$.features[0].geometry' RETURNING
+                                      SDO_GEOMETRY),
+                           SDO_GEOMETRY(2001,
+                                        4326,
+                                        SDO_POINT_TYPE(-122.416667,
+                                                       37.783333,
+                                                       NULL),
+                                        NULL,
+                                        NULL),
+                           'distance=100 unit=KM') = 'TRUE';
+
+CREATE OR REPLACE MATERIALIZED VIEW GEO_DOC_VIEW
+BUILD IMMEDIATE
+REFRESH FAST ON STATEMENT WITH ROWID
+AS
+SELECT g.rowid, jt.*
+FROM j_geo g,
+json_table(geo_doc, '$.features[*]'
+COLUMNS (sdo_val SDO_GEOMETRY PATH '$.geometry')) jt;
+
+CREATE BITMAP INDEX has_zipcode_idx
+ON j_purchaseorder (json_exists(po_document,
+'$.ShippingInstructions.Address.zipCode'));
+
+CREATE BITMAP INDEX cost_ctr_idx
+ON j_purchaseorder (json_value(po_document, '$.CostCenter'));
+
+drop index po_num_idx2;
+CREATE UNIQUE INDEX po_num_idx2 ON j_purchaseorder po
+(po.po_document.PONumber);
 
 
+select * from j_purchaseorder po where po.po_document.PONumber=1600
+
+CREATE UNIQUE INDEX po_ref_idx1
+ON j_purchaseorder (json_value(po_document, '$.Reference'
+RETURNING VARCHAR2(200) ERROR ON ERROR
+NULL ON EMPTY));
 
 
+SELECT JT.*
+  FROM J_PURCHASEORDER PO,
+       JSON_TABLE(PO.PO_DOCUMENT,
+                  '$' COLUMNS PO_NUMBER NUMBER(5) PATH '$.PONumber',
+                  REFERENCE VARCHAR2(30 CHAR) PATH '$.Reference',
+                  REQUESTOR VARCHAR2(32 CHAR) PATH '$.Requestor',
+                  USERID VARCHAR2(10 CHAR) PATH '$.User',
+                  COSTCENTER VARCHAR2(16 CHAR) PATH '$.CostCenter') JT
+ WHERE PO_NUMBER = 1600;
 
+SELECT COUNT(*)
+  FROM J_PURCHASEORDER
+ WHERE JSON_EXISTS(PO_DOCUMENT, '$.PONumber?(@ > $d)' PASSING 1500 AS "d");
 
+--By default, SQL/JSON function json_value returns a VARCHAR2 value. When you
+--create a function-based index using json_value, unless you use a RETURNING clause
+--to specify a different return data type, the index is not picked up for a query that
+--expects a non-VARCHAR2 value.
 
+SELECT COUNT(*)
+  FROM J_PURCHASEORDER PO
+ WHERE JSON_VALUE(PO_DOCUMENT, '$.PONumber' RETURNING NUMBER) > 1500;
 
+SELECT COUNT(*)
+  FROM J_PURCHASEORDER PO
+ WHERE TO_NUMBER(JSON_VALUE(PO_DOCUMENT, '$.PONumber')) > 1500;
 
+--JSON_VALUE Query with Implicit Numerical Conversion
+SELECT COUNT(*)
+  FROM J_PURCHASEORDER PO
+ WHERE JSON_VALUE(PO_DOCUMENT, '$.PONumber') > 1500;
 
+--To index multiple fields of a JSON object, you first create virtual columns for them.
+--Then you create a composite B-tree index on the virtual columns.
 
+ALTER TABLE J_PURCHASEORDER ADD (USERID VARCHAR2(20)
+GENERATED ALWAYS AS (JSON_VALUE(PO_DOCUMENT, '$.User' RETURNING
+VARCHAR2(20))));
 
+ALTER TABLE J_PURCHASEORDER ADD (COSTCENTER VARCHAR2(6)
+GENERATED ALWAYS AS (JSON_VALUE(PO_DOCUMENT, '$.CostCenter'
+RETURNING VARCHAR2(6))));
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+select * from J_PURCHASEORDER;

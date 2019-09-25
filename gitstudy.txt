@@ -134,6 +134,24 @@ cherry-pick应用在本地分支
 git cherry-pick 7801aaf4c48eee0f选择develop分支的commitid
 
 
+G:\rebase>git rebase develop
+First, rewinding head to replay your work on top of it...
+Applying: 'test1'
+Using index info to reconstruct a base tree...
+M       test.txt
+Falling back to patching base and 3-way merge...
+Auto-merging test.txt
+CONFLICT (content): Merge conflict in test.txt
+error: Failed to merge in the changes.
+hint: Use 'git am --show-current-patch' to see the failed patch
+Patch failed at 0001 'test1'
+Resolve all conflicts manually, mark them as resolved with
+"git add/rm <conflicted_files>", then run "git rebase --continue".
+You can instead skip this commit: run "git rebase --skip".
+To abort and get back to the state before "git rebase", run "git rebase --abort".
+
+G:\rebase>
+
 
 
 

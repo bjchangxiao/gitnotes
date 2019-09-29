@@ -993,17 +993,261 @@ BEGIN
   pkg.print_rec_type(r2); -- fails
 END;
 /
+----------------------------------------------------------
+--%ROWTYPE Variable Represents Full Database Table Row
+DROP TABLE DEPARTMENTS PURGE;
+CREATE TABLE DEPARTMENTS
+(
+DEPARTMENT_ID NUMBER,
+DEPARTMENT_NAME VARCHAR2(200),
+MANAGER_ID NUMBER,
+LOCATION_ID NUMBER); 
+DECLARE
+  DEPT_REC DEPARTMENTS%ROWTYPE;
+BEGIN
+  DEPT_REC.DEPARTMENT_ID   := 10;
+  DEPT_REC.DEPARTMENT_NAME := 'ADMINISTRATION';
+  DEPT_REC.MANAGER_ID      := 200;
+  DEPT_REC.LOCATION_ID     := 1700;
+  DBMS_OUTPUT.PUT_LINE('dept_id: ' || dept_rec.department_id);
+  DBMS_OUTPUT.PUT_LINE('dept_name: ' || dept_rec.department_name);
+  DBMS_OUTPUT.PUT_LINE('mgr_id: ' || dept_rec.manager_id);
+  DBMS_OUTPUT.PUT_LINE('loc_id: ' || dept_rec.location_id);
+END;
+/
+DROP TABLE DEPARTMENTS PURGE;
+
 ---------------------------------------------------------- 
+--%ROWTYPE Variable Does Not Inherit Initial Values or Constraints
+DROP TABLE T1 PURGE;
+CREATE TABLE T1(
+C1 INTEGER DEFAULT 0 NOT NULL,
+C2 INTEGER DEFAULT 1 NOT NULL
+);
+DECLARE
+  T1_ROW T1%ROWTYPE;
+BEGIN
+  DBMS_OUTPUT.PUT('T1.C1=');
+  DBMS_OUTPUT.PUT_LINE(NVL(TO_CHAR(T1_ROW.C1), 'NULL'));
+  DBMS_OUTPUT.PUT('T1.C2=');
+  DBMS_OUTPUT.PUT_LINE(NVL(TO_CHAR(t1_row.c2), 'NULL'));
+END;
+/
+DROP TABLE T1 PURGE;
+
+----------------------------------------------------------
+DROP TABLE EMPLOYEES PURGE;
+CREATE TABLE EMPLOYEES 
+(
+FIRST_NAME VARCHAR2(50),
+LAST_NAME VARCHAR2(50),
+PHONE_NUMBER VARCHAR2(50),
+MID_NAME VARCHAR2(50)); 
+DECLARE
+  CURSOR C1 IS
+    SELECT FIRST_NAME, LAST_NAME, PHONE_NUMBER FROM EMPLOYEES;
+  FRIEND C1%ROWTYPE;
+BEGIN
+  friend.first_name   := 'John';
+  friend.last_name    := 'Smith';
+  friend.phone_number := '1-650-555-1234';
+  DBMS_OUTPUT.PUT_LINE(friend.first_name || ' ' || friend.last_name || ', ' ||
+                       friend.phone_number);
+END;
+/
+DROP TABLE EMPLOYEES PURGE;
+
 ---------------------------------------------------------- 
+--%ROWTYPE Variable Represents Join Row
+DROP TABLE EMPLOYEES PURGE;
+CREATE TABLE EMPLOYEES 
+(
+employee_id NUMBER,
+FIRST_NAME VARCHAR2(50),
+LAST_NAME VARCHAR2(50),
+PHONE_NUMBER VARCHAR2(50),
+DEPARTMENT_ID NUMBER,
+manager_id NUMBER,
+email VARCHAR2(50),
+MID_NAME VARCHAR2(50));
+
+DROP TABLE DEPARTMENTS PURGE;
+CREATE TABLE DEPARTMENTS
+(
+DEPARTMENT_ID NUMBER,
+DEPARTMENT_NAME VARCHAR2(200),
+MANAGER_ID NUMBER,
+LOCATION_ID NUMBER); 
+DECLARE
+  CURSOR c2 IS
+    SELECT employee_id, email, employees.manager_id, location_id
+      FROM employees, departments
+     WHERE employees.department_id = departments.department_id;
+  join_rec c2%ROWTYPE; -- includes columns from two tables
+BEGIN
+  NULL;
+END;
+/
 ---------------------------------------------------------- 
+--Inserting %ROWTYPE Record into Table (Wrong)
+DROP TABLE plch_departure purge;
+CREATE TABLE plch_departure (
+destination VARCHAR2(100),
+departure_time DATE,
+delay NUMBER(10),
+expected GENERATED ALWAYS AS (departure_time + delay/24/60/60)
+);
+DECLARE
+  dep_rec plch_departure%ROWTYPE;
+BEGIN
+  dep_rec.destination    := 'X';
+  dep_rec.departure_time := SYSDATE;
+  dep_rec.delay          := 1500;
+  INSERT INTO plch_departure VALUES dep_rec;
+END;
+/
+--Inserting %ROWTYPE Record into Table (Right)
+DECLARE
+  dep_rec plch_departure%rowtype;
+BEGIN
+  dep_rec.destination    := 'X';
+  dep_rec.departure_time := SYSDATE;
+  dep_rec.delay          := 1500;
+  INSERT INTO plch_departure
+    (destination, departure_time, delay)
+  VALUES
+    (dep_rec.destination, dep_rec.departure_time, dep_rec.delay);
+end;
+/
 ---------------------------------------------------------- 
+--Orace12c
+--%ROWTYPE Affected by Making Invisible Column Visible
+drop table t purge;
+CREATE TABLE t (a INT, b INT, c INT INVISIBLE);
+INSERT INTO t (a, b, c) VALUES (1, 2, 3);
+COMMIT;
+DECLARE
+  t_rec t%ROWTYPE; -- t_rec has fields a and b, but not c
+BEGIN
+  SELECT * INTO t_rec FROM t WHERE ROWNUM < 2; -- t_rec(a)=1, t_rec(b)=2
+  DBMS_OUTPUT.PUT_LINE('c = ' || t_rec.c);
+END;
+/
+
+ALTER TABLE t MODIFY (c VISIBLE);
+
+DECLARE
+  t_rec t%ROWTYPE; -- t_rec has fields a, b, and c
+BEGIN
+  SELECT * INTO t_rec FROM t WHERE ROWNUM < 2; -- t_rec(a)=1, t_rec(b)=2,
+  -- t_rec(c)=3
+  DBMS_OUTPUT.PUT_LINE('c = ' || t_rec.c);
+END;
+/
+
 ---------------------------------------------------------- 
+--Assigning Record to Another Record of Same RECORD Type
+DROP TABLE EMPLOYEES PURGE;
+CREATE TABLE EMPLOYEES 
+(
+employee_id NUMBER,
+FIRST_NAME VARCHAR2(50),
+LAST_NAME VARCHAR2(50),
+PHONE_NUMBER VARCHAR2(50),
+DEPARTMENT_ID NUMBER,
+manager_id NUMBER,
+email VARCHAR2(50),
+MID_NAME VARCHAR2(50));
+
+DECLARE
+  TYPE name_rec IS RECORD(
+    first employees.first_name%TYPE DEFAULT 'John',
+    last  employees.last_name%TYPE DEFAULT 'Doe');
+  name1 name_rec;
+  name2 name_rec;
+BEGIN
+  name1.first := 'Jane';
+  name1.last  := 'Smith';
+  DBMS_OUTPUT.PUT_LINE('name1: ' || name1.first || ' ' || name1.last);
+  name2 := name1;
+  DBMS_OUTPUT.PUT_LINE('name2: ' || name2.first || ' ' || name2.last);
+END;
+/
 ---------------------------------------------------------- 
+--Assigning %ROWTYPE Record to RECORD Type Record
+DECLARE
+  TYPE name_rec IS RECORD(
+    first employees.first_name%TYPE DEFAULT 'John',
+    last  employees.last_name%TYPE DEFAULT 'Doe');
+  CURSOR c IS
+    SELECT first_name, last_name FROM employees;
+  target name_rec;
+  source c%ROWTYPE;
+BEGIN
+  source.first_name := 'Jane';
+  source.last_name  := 'Smith';
+  DBMS_OUTPUT.PUT_LINE('source: ' || source.first_name || ' ' ||
+                       source.last_name);
+  target := source;
+  DBMS_OUTPUT.PUT_LINE('target: ' || target.first || ' ' || target.last);
+END;
+/
 ---------------------------------------------------------- 
+--Assigning Nested Record to Another Record of Same RECORD
+DECLARE
+  TYPE name_rec IS RECORD(
+    first employees.first_name%TYPE,
+    last  employees.last_name%TYPE);
+  TYPE phone_rec IS RECORD(
+    name  name_rec, -- nested record
+    phone employees.phone_number%TYPE);
+  TYPE email_rec IS RECORD(
+    name  name_rec, -- nested record
+    email employees.email%TYPE);
+  phone_contact phone_rec;
+  email_contact email_rec;
+BEGIN
+  phone_contact.name.first := 'John';
+  phone_contact.name.last  := 'Smith';
+  phone_contact.phone      := '1-650-555-1234';
+  email_contact.name       := phone_contact.name;
+  email_contact.email      := (email_contact.name.first || '.' ||
+                              email_contact.name.last || '@' ||
+                              'example.com');
+  DBMS_OUTPUT.PUT_LINE(email_contact.email);
+END;
+/
+
 ---------------------------------------------------------- 
+--SELECT INTO Assigns Values to Record Variable
+drop table EMPLOYEES purge;
+CREATE TABLE EMPLOYEES 
+(
+employee_id NUMBER,
+FIRST_NAME VARCHAR2(50),
+LAST_NAME VARCHAR2(50),
+PHONE_NUMBER VARCHAR2(50),
+DEPARTMENT_ID NUMBER,
+manager_id NUMBER,
+email VARCHAR2(50),
+MID_NAME VARCHAR2(50),
+job_id varchar2(50));
+DECLARE
+  TYPE RecordTyp IS RECORD(
+    last employees.last_name%TYPE,
+    id   employees.employee_id%TYPE);
+  rec1 RecordTyp;
+BEGIN
+  SELECT last_name, employee_id
+    INTO rec1
+    FROM employees
+   WHERE job_id = 'AD_PRES';
+  DBMS_OUTPUT.PUT_LINE('Employee #' || rec1.id || ' = ' || rec1.last);
+END;
+/
 ---------------------------------------------------------- 
----------------------------------------------------------- 
----------------------------------------------------------- 
+--FETCH Assigns Values to Record that Function Returns
+
 ---------------------------------------------------------- 
 ---------------------------------------------------------- 
 ---------------------------------------------------------- 
